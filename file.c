@@ -35,11 +35,10 @@ void getPermissions(struct stat fs) {
     putchar('\n');
 }
 
-int main(int argn, char* argv[]) {
-  struct stat buffer;
-  for(int i=1; i<argn; i++) {
-    printf("\nWe work on: %s\n", argv[i]);
-    lstat(argv[i], &buffer);
+void handleFile(char* file) {
+      printf("\nWe work on: %s\n", file);
+    struct stat buffer;
+    lstat(file, &buffer);
     if(S_ISREG(buffer.st_mode) > 0) {
       printf("Regular File\n");
       printf("-n (file name)\n-d (file size)\n-h (number of hard links)\n-m (time of last modification)\n-a (access rights)\n-l (create symlink)\n-");
@@ -50,7 +49,7 @@ int main(int argn, char* argv[]) {
         char linkName[64];
         switch(options[j]) {
           case 'n':
-            printf("file name: %s\n", argv[i]);
+            printf("file name: %s\n", file);
             break;
           case 'd':
             printf("file size: %lld bytes\n", buffer.st_size);
@@ -68,10 +67,10 @@ int main(int argn, char* argv[]) {
           case 'l':
             printf("Name of the symlink you want to create: ");     
             scanf("%s", linkName);
-            symlink(argv[i], linkName);
+            symlink(file, linkName);
             break;
           default:
-            printf("%c is an invalid option\n", options[i]);
+            printf("%c is an invalid option\n", options[j]);
         }
       }
       
@@ -81,20 +80,17 @@ int main(int argn, char* argv[]) {
       char options[10];
       scanf("%s", options);
       printf("We read the following options: %s\n", options);
-            for(int j=0; j<strlen(options); j++) {
-              char target[32];
+        for(int j=0; j<strlen(options); j++) {
+        struct stat targetStat;
         switch(options[j]) {
           case 'n':
-          printf("file name: %s\n", argv[i]);
+          printf("file name: %s\n", file);
           break;
           case 'd':
           printf("file size: %lld bytes\n", buffer.st_size);
           break;
           case 't':
-            readlink(argv[i], target, 32);
-            printf("target: %s\n", target);
-            struct stat targetStat;
-            lstat(target, &targetStat);
+            stat(file, &targetStat);
             printf("target size: %lld bytes\n", targetStat.st_size);
             break;
           case 'a':
@@ -102,15 +98,21 @@ int main(int argn, char* argv[]) {
             getPermissions(buffer);
             break;
           case 'l':
-            remove(argv[i]);
+            remove(file);
             printf("link deleted\n");
             break;
           default:
-          printf("%c is an invalid option\n", options[i]);
+          printf("%c is an invalid option\n", options[j]);
         }
       }
       
     }
+}
+
+int main(int argn, char* argv[]) {
+  
+  for(int i=1; i<argn; i++) {
+    handleFile(argv[i]);
   }
   printf("\n");
   // int fileDescriptor = open(argv[1], O_RDONLY); // we don't need this yet
