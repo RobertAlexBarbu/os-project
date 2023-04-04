@@ -5,6 +5,8 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h> // for readlink()
+#include <dirent.h> // for dir stuff
+#include <libgen.h>
 
 void getPermissions(struct stat fs) {
     printf("Owner: ");
@@ -35,8 +37,8 @@ void getPermissions(struct stat fs) {
     putchar('\n');
 }
 
-void handleFile(char* file) {
-      printf("\nWe work on: %s\n", file);
+void handleArgument(char* file) {
+      printf("\nWe work on: %s ", file);
     struct stat buffer;
     lstat(file, &buffer);
     if(S_ISREG(buffer.st_mode) > 0) {
@@ -71,6 +73,7 @@ void handleFile(char* file) {
             break;
           default:
             printf("%c is an invalid option\n", options[j]);
+            handleArgument(file);
         }
       }
       
@@ -103,16 +106,43 @@ void handleFile(char* file) {
             break;
           default:
           printf("%c is an invalid option\n", options[j]);
+          handleArgument(file);
+        }
+      }    
+    } else if(S_ISDIR(buffer.st_mode) > 0) {
+      printf("(Directory)\n");
+      printf("-n (directory name)\n-d (directory size)\n-a (access rights)\n-c (total number of .c files)\n-");
+      char options[10];
+      DIR* dir = opendir(file);
+      scanf("%s", options);
+      printf("We read the following options: %s\n", options);
+        for(int j=0; j<strlen(options); j++) {
+        switch(options[j]) {
+          case 'n':
+          printf("directory name: %s\n", file);
+          break;
+          case 'd':
+          printf("directory size: %lld bytes\n", buffer.st_size);
+          break;
+          case 'a':
+            printf("access rights: ");
+            getPermissions(buffer);
+            break;
+          case 'c':
+            printf("Number of .c files: \n");
+            break;
+          default:
+          printf("%c is an invalid option\n", options[j]);
+          handleArgument(file);
         }
       }
-      
     }
 }
 
 int main(int argn, char* argv[]) {
   
   for(int i=1; i<argn; i++) {
-    handleFile(argv[i]);
+    handleArgument(argv[i]);
   }
   printf("\n");
   // int fileDescriptor = open(argv[1], O_RDONLY); // we don't need this yet
