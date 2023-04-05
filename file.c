@@ -113,7 +113,10 @@ void handleArgument(char* file) {
       printf("(Directory)\n");
       printf("-n (directory name)\n-d (directory size)\n-a (access rights)\n-c (total number of .c files)\n-");
       char options[10];
+      // used for command -c
       DIR* dir = opendir(file);
+      int nrOfFiles = 0;
+      struct dirent* entry = readdir(dir);
       scanf("%s", options);
       printf("We read the following options: %s\n", options);
         for(int j=0; j<strlen(options); j++) {
@@ -129,13 +132,26 @@ void handleArgument(char* file) {
             getPermissions(buffer);
             break;
           case 'c':
-            printf("Number of .c files: \n");
+            
+            
+            
+            while(entry != NULL) {
+              
+              char *end = strrchr(entry->d_name, '.');
+              if(end && !strcmp(end, ".c")) {
+                nrOfFiles++;
+              }
+              entry = readdir(dir);
+              
+            }
+            printf("Number of .c files: %d\n", nrOfFiles);
             break;
           default:
           printf("%c is an invalid option\n", options[j]);
-          handleArgument(file);
+          // handleArgument(file);
         }
       }
+      closedir(dir);
     }
 }
 
