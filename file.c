@@ -113,45 +113,41 @@ void handleArgument(char* file) {
       printf("(Directory)\n");
       printf("-n (directory name)\n-d (directory size)\n-a (access rights)\n-c (total number of .c files)\n-");
       char options[10];
-      // used for command -c
-      DIR* dir = opendir(file);
-      int nrOfFiles = 0;
-      struct dirent* entry = readdir(dir);
       scanf("%s", options);
+      // if all options are invalid -> recall the function
+      int n=0, d=0, a=0, c=0, err=0; // used to make sure we don't display the same thing more than once
       printf("We read the following options: %s\n", options);
         for(int j=0; j<strlen(options); j++) {
-        switch(options[j]) {
-          case 'n':
-          printf("directory name: %s\n", file);
-          break;
-          case 'd':
-          printf("directory size: %lld bytes\n", buffer.st_size);
-          break;
-          case 'a':
+          if(options[j]=='n' && n==0) {
+            printf("directory name: %s\n", file);
+            n++;
+          } else if(options[j]=='d' && d==0) {
+            printf("directory size: %lld bytes\n", buffer.st_size);
+            d++;
+          } else if(options[j]=='a' && a==0) {
             printf("access rights: ");
             getPermissions(buffer);
-            break;
-          case 'c':
-            
-            
-            
-            while(entry != NULL) {
-              
+            a++;
+          } else if(options[j]=='c' && c==0) {
+            DIR* dir = opendir(file);
+            int nrOfFiles = 0;
+            struct dirent* entry = readdir(dir);
+            while(entry != NULL) {          
               char *end = strrchr(entry->d_name, '.');
               if(end && !strcmp(end, ".c")) {
                 nrOfFiles++;
               }
-              entry = readdir(dir);
-              
+              entry = readdir(dir);             
             }
             printf("Number of .c files: %d\n", nrOfFiles);
-            break;
-          default:
-          printf("%c is an invalid option\n", options[j]);
-          // handleArgument(file);
-        }
+            closedir(dir);
+            c++;
+          } else {
+            printf("%c is an invalid option\n", options[j]);
+            err++;
+          }    
       }
-      closedir(dir);
+      
     }
 }
 
