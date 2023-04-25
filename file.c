@@ -153,7 +153,9 @@ void handleArgument(char * file) {
     printf("-n (directory name)\n-d (directory size)\n-a (access rights)\n-c (total number of .c files)\n-");
     char options[10];
     scanf("%s", options);
+    int processes = 0;
     // if all options are invalid -> recall the function
+    processes++;
     pid_t pid = fork();
     if (pid == 0) {
       int n = 0, d = 0, a = 0, c = 0, err = 0; // used to make sure we don't display the same thing more than once
@@ -190,14 +192,17 @@ void handleArgument(char * file) {
       }
       exit(0);
     }
-    wait(0);
+    
+    processes++;
     pid = fork();
     if(pid == 0) {
         execlp("/bin/zsh", "zsh", "handleDirectory.sh", file, NULL);
         printf("error");
         exit(0);
     }
-    wait(0);
+    for(int i=0; i<processes; i++) {
+      wait(0);
+    }
   }
 }
 
