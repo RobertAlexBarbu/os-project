@@ -1,0 +1,5 @@
+test.c:4:8: error: expected ';' at end of declaration
+  int b
+       ^
+       ;
+1 error generated.
