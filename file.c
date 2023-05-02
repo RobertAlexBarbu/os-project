@@ -111,7 +111,10 @@ void handleArgument(char * file) {
       //printf("---Process is done\n");
     }
     for(int i=0; i<processes; i++) {
-      wait(0);
+      int stat;
+      int pd = wait(&stat);
+      int exit = WEXITSTATUS(stat);
+      printf("The process with PID %d has ended with exit code %d\n", pd, exit);
     }
 
   } else if (S_ISLNK(buffer.st_mode) > 0) {
@@ -201,7 +204,10 @@ void handleArgument(char * file) {
         exit(0);
     }
     for(int i=0; i<processes; i++) {
-      wait(0);
+      int stat;
+      int pd = wait(&stat);
+      int exit = WEXITSTATUS(stat);
+      printf("The process with PID %d has ended with exit code %d\n", pd, exit);
     }
   }
 }
