@@ -26,12 +26,8 @@ do
   warnings=`expr $warnings + $?`
 done < log.txt
 
-if [ $warnings -eq -1 ]
+if test "$warnings" -eq -1
 then
-  echo "We have $errors error/s"
+  warnings=`expr $warnings + 1`
 fi
-if [ $errors -eq -1 ]
-then
-  echo "We have $warnings warning/s"
-fi
-exit 0
+echo "$errors errors $warnings warnings stop"

@@ -98,17 +98,46 @@ void handleArgument(char * file) {
     if (end && !strcmp(end, ".c")) {
       // new process
       processes++;
+      int pfd[2];
+      pipe(pfd);
       pid = fork();
       // int status;
+      
+      
       if (pid == 0) {
         // printf("---New process!\n");
+        close(pfd[0]);
+        dup2(pfd[1], 1);
         execlp("/bin/zsh", "zsh", "checkErrors.sh", file, NULL);
         printf("error");
         exit(0);
 
       }
-      
       //printf("---Process is done\n");
+      close(pfd[1]);
+      FILE* stream = fdopen(pfd[0], "r");
+      char str[10000];
+      char strAux[500];
+      int works = 1;
+      
+      while(fscanf(stream, "%s", strAux) && works==1) {
+        // strcat(str, strAux);
+        
+        if(strcmp(strAux, "stop")==0) {
+          works = 0;
+        }
+        printf("%s ", strAux);
+        
+
+      } 
+      /*
+        int bytes;
+        for(bytes = 0; getc(stream) != EOF; ++bytes);
+        printf("File size: %d bytes\n",bytes);
+        */
+      close(pfd[0]);
+      printf("READ FROM PROC: %saa", str); // AAAAAAAAAAAAAAA 
+
     }
     for(int i=0; i<processes; i++) {
       int stat;
