@@ -57,6 +57,7 @@ void getPermissions(struct stat fs)
     printf("execute - no");
   putchar('\n');
 }
+
 /* Compute score for C files */
 int computeScore(int errors, int warnings)
 {
@@ -74,6 +75,7 @@ int computeScore(int errors, int warnings)
   }
   return 10;
 }
+
 /* Extract file/dir name from path */
 char *getName(char path[])
 {
@@ -86,6 +88,7 @@ char *getName(char path[])
     return strrchr(path, '/') + 1;
   }
 }
+
 /* Handle path received as argument */
 void handleArgument(char *file)
 {
@@ -210,7 +213,7 @@ void handleArgument(char *file)
       int works = 1;
       int store = 0;
       char errorsWarnings[3];
-      while (fscanf(stream, "%s", strAux) && works == 1)
+      while (fscanf(stream, "%s", strAux) && works == 1) // a more "formatted" way of reading so we read exactly what we need in one go
       {
         if (strcmp(strAux, "((stop))") == 0)
         {
@@ -249,7 +252,7 @@ void handleArgument(char *file)
       int stat;
       int pd = wait(&stat);
       int exit = WEXITSTATUS(stat);
-      printf("\n * The process with PID %d has ended with exit code %d\n", pd, exit);
+      printf(" * The process with PID %d has ended with exit code %d", pd, exit);
       if (exit == 2 && pd == pid1)
       {
         handleArgument(file);
@@ -261,7 +264,7 @@ void handleArgument(char *file)
     }
   }
 
-  /* Handling for SYMBOLIC LINKS */
+  /* Handling SYMBOLIC LINKS */
   else if (S_ISLNK(buffer.st_mode) > 0)
   {
     printf("Symbolic Link\n");
@@ -299,40 +302,46 @@ void handleArgument(char *file)
       }
     }
   }
+
+  /* Handling DIRECTORIES */
   else if (S_ISDIR(buffer.st_mode) > 0)
   {
-    printf("(Directory)\n");
-    printf("-n (directory name)\n-d (directory size)\n-a (access rights)\n-c (total number of .c files)\n-");
+    printf("Directory\n");
+    printf("-n (directory name)\n-d (directory size)\n-a (access rights)\n-c (total number of .c files)\n");
     char options[10];
     scanf("%s", options);
     int processes = 0;
-    // if all options are invalid -> recall the function
     processes++;
-    pid_t pid = fork();
-    if (pid == 0)
+    // Process 1
+    pid_t pid1 = fork();
+    if (pid1 < 0)
     {
-      int n = 0, d = 0, a = 0, c = 0, err = 0; // used to make sure we don't display the same thing more than once
+      perror("Child process creation error\n");
+      exit(1);
+    }
+    if (pid1 == 0)
+    {
       printf("We read the following options: %s\n", options);
-      for (int j = 0; j < strlen(options); j++)
+      if (options[0] != '-')
       {
-        if (options[j] == 'n' && n == 0)
+        printf("ERROR: please use the following format: -option1option2\n");
+        exit(2);
+      }
+      for (int j = 1; j < strlen(options); j++)
+      {
+        switch (options[j])
         {
-          printf("directory name: %s\n", file);
-          n++;
-        }
-        else if (options[j] == 'd' && d == 0)
-        {
-          printf("directory size: %lld bytes\n", buffer.st_size);
-          d++;
-        }
-        else if (options[j] == 'a' && a == 0)
-        {
-          printf("access rights: ");
+        case 'n':
+          printf(" - Directory name: %s\n", getName(file));
+          break;
+        case 'd':
+          printf(" - Directory size: %lld bytes\n", buffer.st_size);
+          break;
+        case 'a':
+          printf(" - Access rights:\n");
           getPermissions(buffer);
-          a++;
-        }
-        else if (options[j] == 'c' && c == 0)
-        {
+          break;
+        case 'c': {
           DIR *dir = opendir(file);
           int nrOfFiles = 0;
           struct dirent *entry = readdir(dir);
@@ -345,33 +354,45 @@ void handleArgument(char *file)
             }
             entry = readdir(dir);
           }
-          printf("Number of .c files: %d\n", nrOfFiles);
+          printf(" - Number of .c files: %d\n", nrOfFiles);
           closedir(dir);
-          c++;
-        }
-        else
-        {
-          printf("%c is an invalid option\n", options[j]);
-          err++;
+          break; }
+        default:
+          printf("ERROR: invalid options\n");
+          exit(3);
         }
       }
       exit(0);
     }
-
+    // Process 2
     processes++;
-    pid = fork();
-    if (pid == 0)
+    pid_t pid2 = fork();
+    if (pid2 < 0)
     {
-      execlp("/bin/zsh", "zsh", "handleDirectory.sh", file, NULL);
-      printf("error");
-      exit(0);
+      perror("Child process creation error\n");
+      exit(1);
     }
+    if (pid2 == 0)
+    {
+      execlp("/bin/sh", "sh", "handleDirectory.sh", getName(file), NULL);
+      printf("Something wen wrong with execlp\n");
+      exit(1);
+    }
+    // Receive and print return states of child processes & wait for them to finish
     for (int i = 0; i < processes; i++)
     {
       int stat;
       int pd = wait(&stat);
       int exit = WEXITSTATUS(stat);
-      printf("The process with PID %d has ended with exit code %d\n", pd, exit);
+      printf(" * The process with PID %d has ended with exit code %d\n", pd, exit);
+            if (exit == 2 && pd == pid1)
+      {
+        handleArgument(file);
+      }
+      if (exit == 3 && pd == pid1)
+      {
+        handleArgument(file);
+      }
     }
   }
 }
