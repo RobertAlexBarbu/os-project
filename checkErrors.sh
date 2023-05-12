@@ -1,5 +1,5 @@
 cFile=$1;
-gcc -Wall $1 2> log.txt
+gcc -Wall -o test $1 2> log.txt
 errors=-1
 warnings=-1
 function checkError {
@@ -30,4 +30,9 @@ if test "$warnings" -eq -1
 then
   warnings=`expr $warnings + 1`
 fi
-echo "$errors errors $warnings warnings stop"
+if test "$errors" -eq -1
+then
+  errors=`expr $errors + 1`
+fi
+echo "((start)) $errors errors $warnings warnings ((stop))"
+exit 0

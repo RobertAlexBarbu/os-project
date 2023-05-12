@@ -1,7 +1,8 @@
 #include <stdio.h>
 int main() {
   int a;
-  int b
-  printf("hey!"
+  int b;
+  int x;
+  printf("hey!");
   return 0;
 }

@@ -1,5 +1,10 @@
-test.c:4:8: error: expected ';' at end of declaration
-  int b
-       ^
-       ;
-1 error generated.
+test.c:3:7: warning: unused variable 'a' [-Wunused-variable]
+  int a;
+      ^
+test.c:4:7: warning: unused variable 'b' [-Wunused-variable]
+  int b;
+      ^
+test.c:5:7: warning: unused variable 'x' [-Wunused-variable]
+  int x;
+      ^
+3 warnings generated.

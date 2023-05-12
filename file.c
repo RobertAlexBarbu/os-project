@@ -1,161 +1,280 @@
 #include <stdio.h>
-
 #include <stdlib.h>
-
-#include <fcntl.h> // for open()
-
-#include <unistd.h> // for close()
-
-#include <sys/stat.h> // for fstat()
-
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
 #include <string.h>
-
 #include <time.h>
-
-#include <unistd.h> // for readlink()
-
-#include <dirent.h> // for dir stuff
-
+#include <unistd.h>
+#include <dirent.h>
 #include <libgen.h>
 
-void getPermissions(struct stat fs) {
-  printf("Owner: ");
+/* Read permissions info of file */
+void getPermissions(struct stat fs)
+{
+  printf("\tOwner:\n");
   if (fs.st_mode & S_IRUSR)
-    printf("read ");
+    printf("\t  read - yes | ");
+  else
+    printf("\tread - no | ");
   if (fs.st_mode & S_IWUSR)
-    printf("write ");
+    printf("write - yes | ");
+  else
+    printf("write - no | ");
   if (fs.st_mode & S_IXUSR)
-    printf("execute");
-  putchar(' ');
+    printf("execute - yes ");
+  else
+    printf("execute - no");
+  putchar('\n');
 
-  printf("Group: ");
+  printf("\tGroup:\n");
   if (fs.st_mode & S_IRGRP)
-    printf("read ");
+    printf("\t  read - yes | ");
+  else
+    printf("\tread - no | ");
   if (fs.st_mode & S_IWGRP)
-    printf("write ");
+    printf("write - yes | ");
+  else
+    printf("write - no | ");
   if (fs.st_mode & S_IXGRP)
-    printf("execute");
-  putchar(' ');
+    printf("execute - yes ");
+  else
+    printf("execute - no");
+  putchar('\n');
 
-  printf("Others: ");
+  printf("\tOthers:\n");
   if (fs.st_mode & S_IROTH)
-    printf("read ");
+    printf("\t  read - yes | ");
+  else
+    printf("\tread - no | ");
   if (fs.st_mode & S_IWOTH)
-    printf("write ");
+    printf("write - yes | ");
+  else
+    printf("write - no | ");
   if (fs.st_mode & S_IXOTH)
-    printf("execute");
+    printf("execute - yes ");
+  else
+    printf("execute - no");
   putchar('\n');
 }
-
-void handleArgument(char * file) {
+/* Compute score for C files */
+int computeScore(int errors, int warnings)
+{
+  if (errors >= 1)
+  {
+    return 1;
+  }
+  if (errors == 0 && warnings > 10)
+  {
+    return 2;
+  }
+  if (errors == 0 && warnings < 10)
+  {
+    return 2 + 8 * (10 - warnings) / 10;
+  }
+  return 10;
+}
+/* Extract file/dir name from path */
+char *getName(char path[])
+{
+  if (strrchr(path, '/') == NULL)
+  {
+    return path;
+  }
+  else
+  {
+    return strrchr(path, '/') + 1;
+  }
+}
+/* Handle path received as argument */
+void handleArgument(char *file)
+{
   printf("\nWe work on: %s ", file);
   struct stat buffer;
-  lstat(file, & buffer);
-  if (S_ISREG(buffer.st_mode) > 0) {
+  lstat(file, &buffer);
+
+  /* Handling REGULAR FILES */
+  if (S_ISREG(buffer.st_mode) > 0)
+  {
     printf("Regular File\n");
-    printf("-n (file name)\n-d (file size)\n-h (number of hard links)\n-m (time of last modification)\n-a (access rights)\n-l (create symlink)\n-");
+    printf("-n (file name)\n-d (file size)\n-h (number of hard links)\n-m (time of last modification)\n-a (access rights)\n-l (create symlink)\n");
     char options[10];
     scanf("%s", options);
     int processes = 0;
     processes++;
-    pid_t pid = fork();
-    if (pid == 0) {
-      printf("We read the following options: %s\n", options);
-      for (int j = 0; j < strlen(options); j++) {
+    // Process 1
+    pid_t pid1 = fork();
+    if (pid1 < 0)
+    {
+      perror("Child process creation error\n");
+      exit(1);
+    }
+    if (pid1 == 0)
+    {
+      printf("\nWe read the following options: %s\n", options);
+      if (options[0] != '-')
+      {
+        printf("ERROR: please use the following format: -option1option2\n");
+        exit(2);
+      }
+      for (int j = 1; j < strlen(options); j++)
+      {
         char linkName[64];
-        switch (options[j]) {
+        switch (options[j])
+        {
         case 'n':
-          printf("file name: %s\n", file);
+          printf(" - File name: %s\n", getName(file));
           break;
         case 'd':
-          printf("file size: %lld bytes\n", buffer.st_size);
+          printf(" - File size: %lld bytes\n", buffer.st_size);
           break;
         case 'h':
-          printf("number of hardlinks: %d\n", buffer.st_nlink);
+          printf(" - Number of hardlinks: %d\n", buffer.st_nlink);
           break;
         case 'm':
-          printf("time of last modification: %s", ctime( & buffer.st_mtime));
+          printf(" - Time of last modification: %s", ctime(&buffer.st_mtime));
           break;
         case 'a':
-          printf("access rights: ");
+          printf(" - Access rights:\n");
           getPermissions(buffer);
           break;
         case 'l':
-          printf("Name of the symlink you want to create: ");
+          printf("!! TYPE the name of the symlink you want to create: ");
           scanf("%s", linkName);
           symlink(file, linkName);
           break;
         default:
-          printf("%c is an invalid option\n", options[j]);
-          handleArgument(file);
+          printf("ERROR: invalid options\n");
+          exit(3);
         }
       }
-
       exit(0);
     }
-    
-    char * end = strrchr(file, '.');
-    if (end && !strcmp(end, ".c")) {
-      // new process
-      processes++;
-      int pfd[2];
-      pipe(pfd);
-      pid = fork();
-      // int status;
-      
-      
-      if (pid == 0) {
-        // printf("---New process!\n");
+    // Create pipe
+    int pfd[2];
+    if (pipe(pfd) < 0)
+    {
+      perror("Pipe creation error\n");
+      exit(1);
+    }
+    // Process 2
+    processes++;
+    pid_t pid2 = fork();
+    if (pid2 < 0)
+    {
+      perror("Child process creation error\n");
+      exit(1);
+    }
+    if (pid2 == 0)
+    {
+      printf("Starting 2nd child proccess\n");
+      char *end = strrchr(file, '.');
+      if (end && !strcmp(end, ".c"))
+      {
+        // Handling C regular files
         close(pfd[0]);
-        dup2(pfd[1], 1);
-        execlp("/bin/zsh", "zsh", "checkErrors.sh", file, NULL);
-        printf("error");
-        exit(0);
-
+        if (dup2(pfd[1], 1) < 0)
+        {
+          perror("Error when calling dup2\n");
+          exit(1);
+        }
+        execlp("/bin/sh", "sh", "checkErrors.sh", file, NULL);
+        printf("Something went wrong with execlp\n");
+        exit(2);
       }
-      //printf("---Process is done\n");
+      else
+      {
+        // Handling normal regular files
+        FILE *fp = fopen(file, "r");
+        char c = getc(fp);
+        int lines = 0;
+        while (c != EOF)
+        {
+          if (c == '\n')
+          {
+            lines++;
+          }
+          c = getc(fp);
+        }
+        printf(" - Number of lines: %d\n", lines);
+        exit(0);
+      }
+    }
+    // Read from pipe and compute score if C file
+    char *end = strrchr(file, '.');
+    if (end && !strcmp(end, ".c"))
+    {
       close(pfd[1]);
-      FILE* stream = fdopen(pfd[0], "r");
-      char str[10000];
+      FILE *stream = fdopen(pfd[0], "r");
       char strAux[500];
       int works = 1;
-      
-      while(fscanf(stream, "%s", strAux) && works==1) {
-        // strcat(str, strAux);
-        
-        if(strcmp(strAux, "stop")==0) {
+      int store = 0;
+      char errorsWarnings[3];
+      while (fscanf(stream, "%s", strAux) && works == 1)
+      {
+        if (strcmp(strAux, "((stop))") == 0)
+        {
+          store = 0;
           works = 0;
         }
-        printf("%s ", strAux);
-        
-
-      } 
-      /*
-        int bytes;
-        for(bytes = 0; getc(stream) != EOF; ++bytes);
-        printf("File size: %d bytes\n",bytes);
-        */
+        else if (strcmp(strAux, "((start))") == 0)
+        {
+          store = 1;
+        }
+        else if (store == 1)
+        {
+          strcat(errorsWarnings, strAux);
+          fscanf(stream, "%s", strAux);
+          fscanf(stream, "%s", strAux);
+          strcat(errorsWarnings, strAux);
+          fscanf(stream, "%s", strAux);
+        }
+      }
       close(pfd[0]);
-      printf("READ FROM PROC: %saa", str); // AAAAAAAAAAAAAAA 
 
+      printf(" - We have %c errors, %c warnings\n", errorsWarnings[0], errorsWarnings[1]);
+      int score = computeScore(errorsWarnings[0] - '0', (int)errorsWarnings[1] - '0');
+      printf("   SCORE: %d\n", score);
+      FILE *gradesFile = fopen("grades.txt", "w");
+      if (gradesFile == NULL)
+      {
+        printf("Could not open grades file");
+      }
+      fprintf(gradesFile, "%s : %d\n", strrchr(file, '/') == NULL ? file : strrchr(file, '/') + 1, score);
+      fclose(gradesFile);
     }
-    for(int i=0; i<processes; i++) {
+    // Receive and print return states of child processes & wait for them to finish
+    for (int i = 0; i < processes; i++)
+    {
       int stat;
       int pd = wait(&stat);
       int exit = WEXITSTATUS(stat);
-      printf("The process with PID %d has ended with exit code %d\n", pd, exit);
+      printf("\n * The process with PID %d has ended with exit code %d\n", pd, exit);
+      if (exit == 2 && pd == pid1)
+      {
+        handleArgument(file);
+      }
+      if (exit == 3 && pd == pid1)
+      {
+        handleArgument(file);
+      }
     }
+  }
 
-  } else if (S_ISLNK(buffer.st_mode) > 0) {
+  /* Handling for SYMBOLIC LINKS */
+  else if (S_ISLNK(buffer.st_mode) > 0)
+  {
     printf("Symbolic Link\n");
     printf("-n (link name)\n-d (link size)\n-t (target size)\n-a (access rights)\n-l (delete link)\n-");
     char options[10];
     scanf("%s", options);
 
     printf("We read the following options: %s\n", options);
-    for (int j = 0; j < strlen(options); j++) {
+    for (int j = 0; j < strlen(options); j++)
+    {
       struct stat targetStat;
-      switch (options[j]) {
+      switch (options[j])
+      {
       case 'n':
         printf("file name: %s\n", file);
         break;
@@ -163,7 +282,7 @@ void handleArgument(char * file) {
         printf("file size: %lld bytes\n", buffer.st_size);
         break;
       case 't':
-        stat(file, & targetStat);
+        stat(file, &targetStat);
         printf("target size: %lld bytes\n", targetStat.st_size);
         break;
       case 'a':
@@ -179,8 +298,9 @@ void handleArgument(char * file) {
         handleArgument(file);
       }
     }
-
-  } else if (S_ISDIR(buffer.st_mode) > 0) {
+  }
+  else if (S_ISDIR(buffer.st_mode) > 0)
+  {
     printf("(Directory)\n");
     printf("-n (directory name)\n-d (directory size)\n-a (access rights)\n-c (total number of .c files)\n-");
     char options[10];
@@ -189,27 +309,38 @@ void handleArgument(char * file) {
     // if all options are invalid -> recall the function
     processes++;
     pid_t pid = fork();
-    if (pid == 0) {
+    if (pid == 0)
+    {
       int n = 0, d = 0, a = 0, c = 0, err = 0; // used to make sure we don't display the same thing more than once
       printf("We read the following options: %s\n", options);
-      for (int j = 0; j < strlen(options); j++) {
-        if (options[j] == 'n' && n == 0) {
+      for (int j = 0; j < strlen(options); j++)
+      {
+        if (options[j] == 'n' && n == 0)
+        {
           printf("directory name: %s\n", file);
           n++;
-        } else if (options[j] == 'd' && d == 0) {
+        }
+        else if (options[j] == 'd' && d == 0)
+        {
           printf("directory size: %lld bytes\n", buffer.st_size);
           d++;
-        } else if (options[j] == 'a' && a == 0) {
+        }
+        else if (options[j] == 'a' && a == 0)
+        {
           printf("access rights: ");
           getPermissions(buffer);
           a++;
-        } else if (options[j] == 'c' && c == 0) {
-          DIR * dir = opendir(file);
+        }
+        else if (options[j] == 'c' && c == 0)
+        {
+          DIR *dir = opendir(file);
           int nrOfFiles = 0;
-          struct dirent * entry = readdir(dir);
-          while (entry != NULL) {
-            char * end = strrchr(entry -> d_name, '.');
-            if (end && !strcmp(end, ".c")) {
+          struct dirent *entry = readdir(dir);
+          while (entry != NULL)
+          {
+            char *end = strrchr(entry->d_name, '.');
+            if (end && !strcmp(end, ".c"))
+            {
               nrOfFiles++;
             }
             entry = readdir(dir);
@@ -217,22 +348,26 @@ void handleArgument(char * file) {
           printf("Number of .c files: %d\n", nrOfFiles);
           closedir(dir);
           c++;
-        } else {
+        }
+        else
+        {
           printf("%c is an invalid option\n", options[j]);
           err++;
         }
       }
       exit(0);
     }
-    
+
     processes++;
     pid = fork();
-    if(pid == 0) {
-        execlp("/bin/zsh", "zsh", "handleDirectory.sh", file, NULL);
-        printf("error");
-        exit(0);
+    if (pid == 0)
+    {
+      execlp("/bin/zsh", "zsh", "handleDirectory.sh", file, NULL);
+      printf("error");
+      exit(0);
     }
-    for(int i=0; i<processes; i++) {
+    for (int i = 0; i < processes; i++)
+    {
       int stat;
       int pd = wait(&stat);
       int exit = WEXITSTATUS(stat);
@@ -241,13 +376,13 @@ void handleArgument(char * file) {
   }
 }
 
-int main(int argn, char * argv[]) {
-
-  for (int i = 1; i < argn; i++) {
+int main(int argn, char *argv[])
+{
+  for (int i = 1; i < argn; i++)
+  {
     handleArgument(argv[i]);
   }
   printf("\n");
-  // int fileDescriptor = open(argv[1], O_RDONLY); // we don't need this yet
-  // close(fileDescriptor);
+
   return 0;
 }
