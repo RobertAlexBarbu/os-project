@@ -147,7 +147,7 @@ void handleArgument(char *file)
           symlink(file, linkName);
           break;
         default:
-          printf("ERROR: invalid options\n");
+          printf("%c is an invalid option\n", options[j]);
           exit(3);
         }
       }
@@ -268,36 +268,93 @@ void handleArgument(char *file)
   else if (S_ISLNK(buffer.st_mode) > 0)
   {
     printf("Symbolic Link\n");
-    printf("-n (link name)\n-d (link size)\n-t (target size)\n-a (access rights)\n-l (delete link)\n-");
+    printf("-n (link name)\n-d (link size)\n-t (target size)\n-a (access rights)\n-l (delete link)\n");
     char options[10];
     scanf("%s", options);
-
-    printf("We read the following options: %s\n", options);
-    for (int j = 0; j < strlen(options); j++)
+    int processes = 0;
+    processes++;
+    // Process 1
+    pid_t pid1 = fork();
+    if (pid1 < 0)
     {
-      struct stat targetStat;
-      switch (options[j])
+      perror("Child process creation error\n");
+      exit(1);
+    }
+    if (pid1 == 0)
+    {
+      printf("We read the following options: %s\n", options);
+      if (options[0] != '-')
       {
-      case 'n':
-        printf("file name: %s\n", file);
-        break;
-      case 'd':
-        printf("file size: %lld bytes\n", buffer.st_size);
-        break;
-      case 't':
-        stat(file, &targetStat);
-        printf("target size: %lld bytes\n", targetStat.st_size);
-        break;
-      case 'a':
-        printf("access rights: ");
-        getPermissions(buffer);
-        break;
-      case 'l':
+        printf("ERROR: please use the following format: -option1option2\n");
+        exit(2);
+      }
+      if (strchr(options, 'l') != NULL)
+      {
         remove(file);
-        printf("link deleted\n");
-        break;
-      default:
-        printf("%c is an invalid option\n", options[j]);
+        printf(" - Link deleted!\n");
+      }
+      else
+      {
+        for (int j = 1; j < strlen(options); j++)
+        {
+          struct stat targetStat;
+
+          switch (options[j])
+          {
+          case 'n':
+            printf(" - File name: %s\n", getName(file));
+            break;
+          case 'd':
+            printf(" - File size: %lld bytes\n", buffer.st_size);
+            break;
+          case 't':
+            stat(file, &targetStat);
+            printf(" - Target size: %lld bytes\n", targetStat.st_size);
+            break;
+          case 'a':
+            printf(" - Access rights:\n");
+            getPermissions(buffer);
+            break;
+          case 'l':
+            remove(file);
+            printf(" - Link deleted!\n");
+            break;
+          default:
+            printf("%c is an invalid option\n", options[j]);
+            exit(3);
+          }
+        }
+      }
+      exit(0);
+    }
+    // Process 2
+    processes++;
+    pid_t pid2 = fork();
+    if (pid2 < 0)
+    {
+      perror("Child process creation error\n");
+      exit(1);
+    }
+    if (pid2 == 0)
+    {
+      printf("Second child process starts\n");
+      execlp("chmod", "chmod", "-R", "760", file, NULL);
+      printf("Something went wrong with execlp\n");
+      exit(1);
+    }
+    // Receive and print return states of child processes & wait for them to finish
+    for (int i = 0; i < processes; i++)
+    {
+      int stat;
+      int pd = wait(&stat);
+      int exit = WEXITSTATUS(stat);
+      printf(" * The process with PID %d has ended with exit code %d", pd, exit);
+      if (exit == 2 && pd == pid1)
+      {
+        handleArgument(file);
+      }
+      if (exit == 3 && pd == pid1)
+      {
         handleArgument(file);
       }
     }
@@ -341,7 +398,8 @@ void handleArgument(char *file)
           printf(" - Access rights:\n");
           getPermissions(buffer);
           break;
-        case 'c': {
+        case 'c':
+        {
           DIR *dir = opendir(file);
           int nrOfFiles = 0;
           struct dirent *entry = readdir(dir);
@@ -356,9 +414,10 @@ void handleArgument(char *file)
           }
           printf(" - Number of .c files: %d\n", nrOfFiles);
           closedir(dir);
-          break; }
+          break;
+        }
         default:
-          printf("ERROR: invalid options\n");
+          printf("%c is an invalid option\n", options[j]);
           exit(3);
         }
       }
@@ -374,8 +433,8 @@ void handleArgument(char *file)
     }
     if (pid2 == 0)
     {
-      execlp("/bin/sh", "sh", "handleDirectory.sh", getName(file), NULL);
-      printf("Something wen wrong with execlp\n");
+      execlp("touch", "touch", strcat(getName(file), "_file.txt"), NULL);
+      printf("Something went wrong with execlp\n");
       exit(1);
     }
     // Receive and print return states of child processes & wait for them to finish
@@ -385,7 +444,7 @@ void handleArgument(char *file)
       int pd = wait(&stat);
       int exit = WEXITSTATUS(stat);
       printf(" * The process with PID %d has ended with exit code %d\n", pd, exit);
-            if (exit == 2 && pd == pid1)
+      if (exit == 2 && pd == pid1)
       {
         handleArgument(file);
       }
